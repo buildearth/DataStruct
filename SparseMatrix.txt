@@ -1,0 +1,177 @@
+#define _CRT_SECURE_NO_DEPRECATE
+#pragma once
+#include<iostream>
+#include<vector>
+using namespace std;
+
+//稀疏矩阵
+/* M*N 的矩阵，矩阵中有效值的个数远小于无效值得个数，而且这些数据的分布没有规律*/
+
+template<class T>
+struct Triple //使用三元组存储每一个有效数据，三元组按原矩阵中的位置，以行优先级先后顺序存储；
+{
+	size_t _row; //行
+	size_t _col; //列
+	T _value;    //有效值
+	
+	
+
+	Triple(size_t row = 0, size_t col = 0, T value = 0)
+		:_row(row)
+		, _col(col)
+	{
+		_value = value;
+	}
+};
+
+template<class T>
+class SparseMatrix
+{
+public:
+	SparseMatrix()
+	{
+
+	}
+
+	SparseMatrix(T * a, size_t N, size_t M, const T & invalue = T())
+		:_N(N)
+		, _M(M)
+		,_invalue(invalue)
+	{
+		for (size_t i = 0; i < _N; i++)
+		{
+			for (size_t j = 0; j < _M; j++)
+			{
+				if (a[i*_M + j] != invalue)
+				{
+					
+					Triple<T> t(i, j, a[i*_M + j]);
+					_matrix.push_back(t);
+				}
+			}
+		}
+	}
+
+	void DisPlay()
+	{
+		size_t index = 0;
+		for (size_t i = 0; i < _N; i++)
+		{
+			for (size_t j = 0; j < _M; j++)
+			{
+				if (index < _matrix.size() && i == _matrix[index]._row && j == _matrix[index]._col)
+				{
+					cout << _matrix[index]._value << " ";
+					++index;
+				}
+				else
+				{
+					cout << _invalue << " ";
+				}
+			}
+
+			cout << endl;
+		}
+		cout << endl;
+	}
+
+	//矩阵的转置，行列对换
+	SparseMatrix<T> Transport()
+	{
+		SparseMatrix<T> tp; //转置后，为_M*_N 矩阵
+		tp._N = _M;
+		tp._M = _N;
+		//tp._matrix.resize(_matrix.size());
+		tp._invalue = _invalue;
+
+		for (size_t i = 0; i < _N; i++) //依次遍历三元组：在原矩阵中以列遍历，也就是转置后的以行优先级存储的三元组；
+		{
+			size_t index = 0;
+			while (index < _matrix.size())
+			{
+				if (_matrix[index]._col == i)   //遍历每一列，找到三元组，以原矩阵的列优先级压栈；
+				{
+					Triple<T> t(_matrix[index]);
+					swap(t._col,t._row);
+
+					tp._matrix.push_back(t);
+				}
+				++index;
+			}
+
+
+		}
+
+		return tp;
+
+
+	}
+
+	//稀疏矩阵的快速转置
+	SparseMatrix<T> FastTransport()
+	{
+		SparseMatrix<T> tp;
+		tp._M = _N;
+		tp._N = _M;
+		tp._invalue = _invalue;
+		
+		tp._matrix.resize(_matrix.size());
+
+		int *count = new int [_M]; //转置后每一行有几个有效数据；
+		memset(count, 0, sizeof(int)* _M);
+		int *start = new int [_M]; //转置周每一行第一个元素的所在三元组的位置；
+
+		size_t index = 0;
+		while (index < _matrix.size()) 
+		{
+			count[_matrix[index]._col]++;  //遍历 一次三元组，对应列 出现数据直接++最后就得出每列数据的个数；
+			index++;
+		}
+
+		start[0] = 0;
+		for (size_t i = 1; i < _M; i++)
+		{
+			start[i] = start[i - 1] + count[i - 1]; //start与count 之间的对应关系；
+		}
+		
+		index = 0;
+		while (index < _matrix.size())
+		{
+			int row = _matrix[index]._col; //转置后的行
+			Triple<T> t(_matrix[index]);
+			swap(t._col,t._row);
+
+			tp._matrix[start[row]] = t;
+			start[row]++;
+			index++;
+		}
+
+		return tp;
+	}
+
+
+
+protected:
+	size_t _N;  //N*M矩阵
+	size_t _M; //列
+	T _invalue;  //无效值
+	vector<Triple<T>> _matrix; //链表，每有一个数据插入（因为不知道稀疏矩阵中的有效值个数，不好直接开空间）
+};
+
+void SpmTest()
+{
+	int a[6][5] = {
+		{ 0, 0, 3, 0, 5 },
+		{ 0, 0, 0, 0, 0 },
+		{ 0, 0, 0, 0, 0 },
+		{ 2, 0, 4, 0, 6 },
+		{ 0, 0, 0, 0, 0 },
+		{ 0, 0, 0, 0, 0 },
+	};
+
+	SparseMatrix<int> sm((int*)a, 6, 5, 0);
+	sm.DisPlay();
+
+	sm.Transport().DisPlay();
+	sm.FastTransport().DisPlay();
+}
